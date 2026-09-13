@@ -239,6 +239,55 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-app
 }
 .payment-arrow { color: var(--accent); font-weight: 700; }
 .payment-amount { margin-left: auto; font-weight: 700; }
+.btn-settle {
+  padding: 5px 10px;
+  border: 1px solid var(--success);
+  border-radius: 6px;
+  background: var(--success-light);
+  color: var(--success);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-left: 8px;
+  transition: background 0.2s;
+}
+.btn-settle:hover { background: var(--success); color: #fff; }
+
+/* Confirm dialog */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  padding: 20px;
+}
+.confirm-dialog {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+}
+.confirm-dialog h3 { text-transform: none; letter-spacing: 0; color: var(--text); font-size: 1.1rem; margin-bottom: 12px; }
+.confirm-dialog p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px; }
+.confirm-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 20px;
+  cursor: pointer;
+  user-select: none;
+}
+.confirm-check input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--success); cursor: pointer; flex-shrink: 0; }
+.confirm-check span { font-size: 0.9rem; color: var(--text); }
+.confirm-buttons { display: flex; gap: 10px; }
+.confirm-buttons .btn { flex: 1; }
 
 /* Add form */
 .form-group { margin-bottom: 16px; }
@@ -320,6 +369,22 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-app
 </head>
 <body>
 
+<!-- Settle confirm dialog -->
+<div id="settle-dialog" class="confirm-overlay hidden">
+  <div class="confirm-dialog">
+    <h3 id="settle-title"></h3>
+    <p id="settle-desc"></p>
+    <label class="confirm-check">
+      <input type="checkbox" id="settle-check">
+      <span>Ich bestätige diese Zahlung. Sie wird in Splid eingetragen und auf allen Geräten synchronisiert.</span>
+    </label>
+    <div class="confirm-buttons">
+      <button class="btn btn-ghost" onclick="cancelSettle()">Abbrechen</button>
+      <button class="btn btn-primary" id="settle-confirm" disabled onclick="confirmSettle()">Ausgleichen</button>
+    </div>
+  </div>
+</div>
+
 <!-- Loading overlay -->
 <div id="loading" class="loading-overlay hidden">
   <div class="spinner"></div>
@@ -354,6 +419,7 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-app
 
     <!-- Entries Tab -->
     <div id="tab-entries">
+      <button class="btn btn-primary hidden" id="add-shortcut" onclick="switchTab('add')" style="margin-bottom:16px">+ Neue Ausgabe</button>
       <div class="card" id="entries-list"></div>
     </div>
 
@@ -366,6 +432,25 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-app
       <div class="card">
         <h3>Ausgleichszahlungen</h3>
         <div id="payments-list"></div>
+      </div>
+      <div class="card hidden" id="pay-card">
+        <h3>Zahlung erfassen</h3>
+        <div class="form-group">
+          <label>Von</label>
+          <select id="pay-from"></select>
+        </div>
+        <div class="form-group">
+          <label>An</label>
+          <select id="pay-to"></select>
+        </div>
+        <div class="form-group">
+          <label>Betrag</label>
+          <input type="number" id="pay-amount" placeholder="0.00" step="0.01" min="0" inputmode="decimal">
+        </div>
+        <div style="margin-top:20px">
+          <button class="btn btn-primary" id="pay-submit" onclick="createPayment()">Zahlung erfassen</button>
+        </div>
+        <div id="pay-error" class="error-msg hidden"></div>
       </div>
     </div>
 
@@ -382,6 +467,10 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-app
           <input type="number" id="add-amount" placeholder="0.00" step="0.01" min="0" inputmode="decimal">
         </div>
         <div class="form-group">
+          <label>Kategorie</label>
+          <select id="add-category"></select>
+        </div>
+        <div class="form-group">
           <label>Bezahlt von</label>
           <select id="add-payer"></select>
         </div>
@@ -394,6 +483,7 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-app
         </div>
         <div id="add-error" class="error-msg hidden"></div>
       </div>
+
     </div>
 
     <!-- Settings Tab -->
@@ -551,6 +641,7 @@ function renderApp() {
   $('group-currency').textContent = currency;
 
   $('tab-btn-add').classList.toggle('hidden', state.readOnly);
+  $('add-shortcut').classList.toggle('hidden', state.readOnly);
 
   // Entries
   if (entries.length === 0) {
@@ -592,22 +683,37 @@ function renderApp() {
     $('payments-list').innerHTML = '<p style="color:var(--text-muted)">Alles ausgeglichen!</p>';
   } else {
     $('payments-list').innerHTML = suggestedPayments.map(p => {
+      const settleBtn = state.readOnly ? '' :
+        `<button class="btn-settle" onclick="quickSettle('${p.from}','${p.to}',${p.amount})" title="Jetzt ausgleichen">Ausgleichen</button>`;
       return `<div class="payment-item">
         <span>${getMemberName(p.from)}</span>
         <span class="payment-arrow">&rarr;</span>
         <span>${getMemberName(p.to)}</span>
         <span class="payment-amount">${formatAmount(parseFloat(p.amount), currency)}</span>
+        ${settleBtn}
       </div>`;
     }).join('');
   }
 
-  // Add form: payer select + profiteers
-  const payerSelect = $('add-payer');
-  payerSelect.innerHTML = members.map(m => `<option value="${m.GlobalId}">${escapeHtml(m.name)}</option>`).join('');
+  // Add form: category, payer, profiteers
+  const categories = group?.customCategories || [];
+  $('add-category').innerHTML = '<option value="">Keine Kategorie</option>' +
+    categories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+
+  const memberOptions = members.map(m => `<option value="${m.GlobalId}">${escapeHtml(m.name)}</option>`).join('');
+  $('add-payer').innerHTML = memberOptions;
 
   $('add-profiteers').innerHTML = members.map(m => {
     return `<span class="profiteer-chip selected" data-id="${m.GlobalId}" onclick="toggleProfiteer(this)">${escapeHtml(m.name)}</span>`;
   }).join('');
+
+  // Payment form (on balance page, only when writes enabled)
+  $('pay-card').classList.toggle('hidden', state.readOnly);
+  if (!state.readOnly) {
+    $('pay-from').innerHTML = memberOptions;
+    $('pay-to').innerHTML = memberOptions;
+    if (members.length > 1) $('pay-to').selectedIndex = 1;
+  }
 
   // Settings
   $('settings-group').textContent = group?.name || '';
@@ -635,6 +741,8 @@ async function createEntry() {
   $('add-error').classList.add('hidden');
 
   try {
+    const categoryName = $('add-category').value;
+    const category = categoryName ? { type: 'custom', originalName: categoryName } : undefined;
     const res = await fetch('/api/entry/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -644,6 +752,7 @@ async function createEntry() {
         amount: parseFloat(amount),
         primaryPayer: payer,
         profiteers,
+        category,
       }),
     });
     const data = await res.json();
@@ -675,6 +784,100 @@ async function deleteEntry(objectId) {
     await refresh();
   } catch (err) {
     alert('Löschen fehlgeschlagen: ' + err.message);
+  }
+}
+
+let pendingSettle = null;
+
+function quickSettle(fromId, toId, amount) {
+  const fromName = getMemberName(fromId);
+  const toName = getMemberName(toId);
+  const formatted = formatAmount(amount, state.group?.defaultCurrencyCode || 'EUR');
+
+  pendingSettle = { fromId, toId, amount };
+  $('settle-title').textContent = `${fromName} zahlt ${formatted} an ${toName}`;
+  $('settle-desc').textContent = `Dieser Betrag wird als Ausgleichszahlung in der Gruppe "${state.group?.name}" eingetragen.`;
+  $('settle-check').checked = false;
+  $('settle-confirm').disabled = true;
+  $('settle-dialog').classList.remove('hidden');
+
+  $('settle-check').onchange = () => {
+    $('settle-confirm').disabled = !$('settle-check').checked;
+  };
+}
+
+function cancelSettle() {
+  pendingSettle = null;
+  $('settle-dialog').classList.add('hidden');
+}
+
+async function confirmSettle() {
+  if (!pendingSettle || !$('settle-check').checked) return;
+
+  $('settle-confirm').disabled = true;
+  $('settle-confirm').textContent = 'Wird eingetragen...';
+
+  try {
+    const { fromId, toId, amount } = pendingSettle;
+    const res = await fetch('/api/payment/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: groupCode, payer: fromId, profiteer: toId, amount }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    $('settle-dialog').classList.add('hidden');
+    pendingSettle = null;
+    await refresh();
+  } catch (err) {
+    alert('Ausgleich fehlgeschlagen: ' + err.message);
+  } finally {
+    $('settle-confirm').textContent = 'Ausgleichen';
+  }
+}
+
+async function createPayment() {
+  const payer = $('pay-from').value;
+  const profiteer = $('pay-to').value;
+  const amount = $('pay-amount').value;
+
+  if (!payer || !profiteer || !amount) {
+    $('pay-error').textContent = 'Bitte alle Felder ausfüllen';
+    $('pay-error').classList.remove('hidden');
+    return;
+  }
+  if (payer === profiteer) {
+    $('pay-error').textContent = 'Von und An dürfen nicht dieselbe Person sein';
+    $('pay-error').classList.remove('hidden');
+    return;
+  }
+
+  $('pay-submit').disabled = true;
+  $('pay-error').classList.add('hidden');
+
+  try {
+    const res = await fetch('/api/payment/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: groupCode,
+        payer,
+        profiteer,
+        amount: parseFloat(amount),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    $('pay-amount').value = '';
+    await refresh();
+    switchTab('entries');
+  } catch (err) {
+    $('pay-error').textContent = err.message || 'Fehler beim Erfassen';
+    $('pay-error').classList.remove('hidden');
+  } finally {
+    $('pay-submit').disabled = false;
   }
 }
 

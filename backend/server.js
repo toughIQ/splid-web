@@ -118,6 +118,34 @@ app.post('/api/entry/create', async (req, res) => {
   }
 });
 
+app.post('/api/payment/create', async (req, res) => {
+  if (!ENABLE_WRITES) return res.status(403).json({ error: 'Read-only mode. Set ENABLE_WRITES=true to allow changes.' });
+
+  const { code, payer, profiteer, amount, currencyCode } = req.body;
+  if (!code) return res.status(400).json({ error: 'code required' });
+  if (!payer || !profiteer || !amount) {
+    return res.status(400).json({ error: 'payer, profiteer, and amount are required' });
+  }
+
+  try {
+    const { client, groupId } = await getOrCreateClient(code);
+
+    await client.entry.payment.create({
+      groupId,
+      payer,
+      profiteer,
+      amount: parseFloat(amount),
+      currencyCode: currencyCode || 'EUR',
+      date: new Date(),
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Create payment error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/entry/delete', async (req, res) => {
   if (!ENABLE_WRITES) return res.status(403).json({ error: 'Read-only mode. Set ENABLE_WRITES=true to allow changes.' });
 
