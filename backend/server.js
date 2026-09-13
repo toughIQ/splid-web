@@ -11,32 +11,40 @@ const ENABLE_WRITES = process.env.ENABLE_WRITES === 'true';
 app.use(express.json());
 app.use(express.static(join(__dirname, '..', 'frontend')));
 
-const sessions = new Map();
+const clientCache = new Map();
 
-function getClient(sessionId) {
-  const session = sessions.get(sessionId);
-  if (!session) return null;
-  session.lastAccess = Date.now();
-  return session;
+async function getOrCreateClient(code) {
+  const normalized = code.replace(/\s/g, '').toUpperCase();
+  const cached = clientCache.get(normalized);
+  if (cached && Date.now() - cached.createdAt < 30 * 60 * 1000) {
+    return cached;
+  }
+
+  const client = new SplidClient();
+  const groupRes = await client.group.getByInviteCode(code);
+  const groupId = groupRes.result.objectId;
+
+  const entry = { client, groupId, createdAt: Date.now() };
+  clientCache.set(normalized, entry);
+  return entry;
 }
 
 setInterval(() => {
-  const maxAge = 30 * 60 * 1000;
-  for (const [id, session] of sessions) {
-    if (Date.now() - session.lastAccess > maxAge) sessions.delete(id);
+  for (const [key, entry] of clientCache) {
+    if (Date.now() - entry.createdAt > 30 * 60 * 1000) clientCache.delete(key);
   }
 }, 5 * 60 * 1000);
 
-app.post('/api/connect', async (req, res) => {
-  const { inviteCode } = req.body;
-  if (!inviteCode || typeof inviteCode !== 'string') {
-    return res.status(400).json({ error: 'inviteCode is required' });
-  }
+function extractCode(req) {
+  return req.body?.code || req.query?.code || null;
+}
+
+app.get('/api/data', async (req, res) => {
+  const code = req.query.code;
+  if (!code) return res.status(400).json({ error: 'code parameter required' });
 
   try {
-    const client = new SplidClient();
-    const groupRes = await client.group.getByInviteCode(inviteCode.trim());
-    const groupId = groupRes.result.objectId;
+    const { client, groupId } = await getOrCreateClient(code);
 
     const [groupInfo, members, entries] = await Promise.all([
       client.groupInfo.getOneByGroup(groupId),
@@ -44,28 +52,18 @@ app.post('/api/connect', async (req, res) => {
       client.entry.getAllByGroup(groupId),
     ]);
 
-    const sessionId = crypto.randomUUID();
-    sessions.set(sessionId, {
-      client,
-      groupId,
-      inviteCode: inviteCode.trim(),
-      lastAccess: Date.now(),
-    });
-
     const activeMembers = members.filter(m => !m.isDeleted);
     const activeEntries = entries.filter(e => !e.isDeleted);
     const balance = SplidClient.getBalance(activeMembers, activeEntries, groupInfo);
     const suggestedPayments = SplidClient.getSuggestedPayments(balance);
 
     res.json({
-      sessionId,
       readOnly: !ENABLE_WRITES,
       group: {
         objectId: groupId,
         name: groupInfo.name,
         defaultCurrencyCode: groupInfo.defaultCurrencyCode,
         customCategories: groupInfo.customCategories,
-        currencyRates: groupInfo.currencyRates,
       },
       members: activeMembers.map(m => ({
         GlobalId: m.GlobalId,
@@ -84,71 +82,22 @@ app.post('/api/connect', async (req, res) => {
       suggestedPayments,
     });
   } catch (err) {
-    console.error('Connect error:', err.message);
-    res.status(400).json({ error: err.message || 'Failed to connect' });
-  }
-});
-
-app.post('/api/refresh', async (req, res) => {
-  const { sessionId } = req.body;
-  const session = getClient(sessionId);
-  if (!session) return res.status(401).json({ error: 'Session expired' });
-
-  try {
-    const { client, groupId } = session;
-
-    const [groupInfo, members, entries] = await Promise.all([
-      client.groupInfo.getOneByGroup(groupId),
-      client.person.getAllByGroup(groupId),
-      client.entry.getAllByGroup(groupId),
-    ]);
-
-    const activeMembers = members.filter(m => !m.isDeleted);
-    const activeEntries = entries.filter(e => !e.isDeleted);
-    const balance = SplidClient.getBalance(activeMembers, activeEntries, groupInfo);
-    const suggestedPayments = SplidClient.getSuggestedPayments(balance);
-
-    res.json({
-      group: {
-        objectId: groupId,
-        name: groupInfo.name,
-        defaultCurrencyCode: groupInfo.defaultCurrencyCode,
-        customCategories: groupInfo.customCategories,
-      },
-      members: activeMembers.map(m => ({
-        GlobalId: m.GlobalId,
-        objectId: m.objectId,
-        name: m.name,
-        initials: m.initials,
-      })),
-      entries: activeEntries
-        .sort((a, b) => {
-          const da = a.date?.iso || a.createdGlobally?.iso || '';
-          const db = b.date?.iso || b.createdGlobally?.iso || '';
-          return db.localeCompare(da);
-        })
-        .map(e => formatEntry(e)),
-      balance,
-      suggestedPayments,
-    });
-  } catch (err) {
-    console.error('Refresh error:', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('Data error:', err.message);
+    res.status(400).json({ error: err.message || 'Failed to load group' });
   }
 });
 
 app.post('/api/entry/create', async (req, res) => {
   if (!ENABLE_WRITES) return res.status(403).json({ error: 'Read-only mode. Set ENABLE_WRITES=true to allow changes.' });
-  const { sessionId, title, amount, currencyCode, primaryPayer, profiteers, category } = req.body;
-  const session = getClient(sessionId);
-  if (!session) return res.status(401).json({ error: 'Session expired' });
 
+  const { code, title, amount, currencyCode, primaryPayer, profiteers, category } = req.body;
+  if (!code) return res.status(400).json({ error: 'code required' });
   if (!title || !amount || !primaryPayer || !profiteers || !Array.isArray(profiteers) || profiteers.length === 0) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
   try {
-    const { client, groupId } = session;
+    const { client, groupId } = await getOrCreateClient(code);
 
     await client.entry.expense.create({
       groupId,
@@ -171,12 +120,12 @@ app.post('/api/entry/create', async (req, res) => {
 
 app.post('/api/entry/delete', async (req, res) => {
   if (!ENABLE_WRITES) return res.status(403).json({ error: 'Read-only mode. Set ENABLE_WRITES=true to allow changes.' });
-  const { sessionId, entryObjectId } = req.body;
-  const session = getClient(sessionId);
-  if (!session) return res.status(401).json({ error: 'Session expired' });
+
+  const { code, entryObjectId } = req.body;
+  if (!code) return res.status(400).json({ error: 'code required' });
 
   try {
-    const { client, groupId } = session;
+    const { client, groupId } = await getOrCreateClient(code);
 
     const entries = await client.entry.getAllByGroup(groupId);
     const entry = entries.find(e => e.objectId === entryObjectId);

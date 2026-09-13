@@ -431,7 +431,6 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-app
 
 <script>
 let state = {
-  sessionId: null,
   readOnly: true,
   group: null,
   members: [],
@@ -440,91 +439,59 @@ let state = {
   suggestedPayments: [],
 };
 
+let groupCode = null;
+
 const $ = id => document.getElementById(id);
 
+function getCodeFromUrl() {
+  return new URLSearchParams(window.location.search).get('code');
+}
+
 function init() {
-  const saved = localStorage.getItem('splid-session');
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved);
-      if (parsed.sessionId && parsed.inviteCode) {
-        reconnect(parsed.inviteCode);
-        return;
-      }
-    } catch {}
+  const code = getCodeFromUrl();
+  if (code) {
+    groupCode = code;
+    loadData();
+  } else {
+    $('invite-code').addEventListener('keydown', e => { if (e.key === 'Enter') connect(); });
   }
-  $('invite-code').addEventListener('keydown', e => { if (e.key === 'Enter') connect(); });
 }
 
-async function connect() {
-  const code = $('invite-code').value.trim();
+function connect() {
+  const code = $('invite-code').value.trim().replace(/\s/g, '');
   if (!code) return;
-
-  $('connect-btn').disabled = true;
-  $('login-error').classList.add('hidden');
-  $('loading').classList.remove('hidden');
-
-  try {
-    const res = await fetch('/api/connect', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ inviteCode: code }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
-
-    state = data;
-    localStorage.setItem('splid-session', JSON.stringify({ sessionId: data.sessionId, inviteCode: code }));
-    renderApp();
-    $('login-view').classList.add('hidden');
-    $('app-view').classList.remove('hidden');
-  } catch (err) {
-    $('login-error').textContent = err.message || 'Verbindung fehlgeschlagen';
-    $('login-error').classList.remove('hidden');
-  } finally {
-    $('connect-btn').disabled = false;
-    $('loading').classList.add('hidden');
-  }
+  window.location.href = '/?code=' + encodeURIComponent(code);
 }
 
-async function reconnect(code) {
+async function loadData() {
   $('login-view').classList.add('hidden');
   $('loading').classList.remove('hidden');
 
   try {
-    const res = await fetch('/api/connect', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ inviteCode: code }),
-    });
+    const res = await fetch('/api/data?code=' + encodeURIComponent(groupCode));
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
 
     state = data;
-    localStorage.setItem('splid-session', JSON.stringify({ sessionId: data.sessionId, inviteCode: code }));
     renderApp();
     $('app-view').classList.remove('hidden');
-  } catch {
-    localStorage.removeItem('splid-session');
+  } catch (err) {
     $('login-view').classList.remove('hidden');
+    $('login-error').textContent = err.message || 'Verbindung fehlgeschlagen';
+    $('login-error').classList.remove('hidden');
+    history.replaceState(null, '', '/');
   } finally {
     $('loading').classList.add('hidden');
   }
 }
 
 async function refresh() {
-  if (!state.sessionId) return;
-
+  if (!groupCode) return;
   try {
-    const res = await fetch('/api/refresh', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId: state.sessionId }),
-    });
+    const res = await fetch('/api/data?code=' + encodeURIComponent(groupCode));
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
-
-    Object.assign(state, data);
+    state = data;
     renderApp();
   } catch (err) {
     console.error('Refresh failed:', err);
@@ -532,11 +499,13 @@ async function refresh() {
 }
 
 function disconnect() {
-  state = { sessionId: null, group: null, members: [], entries: [], balance: {}, suggestedPayments: [] };
-  localStorage.removeItem('splid-session');
+  state = { readOnly: true, group: null, members: [], entries: [], balance: {}, suggestedPayments: [] };
+  groupCode = null;
   $('app-view').classList.add('hidden');
   $('login-view').classList.remove('hidden');
   $('invite-code').value = '';
+  $('login-error').classList.add('hidden');
+  history.replaceState(null, '', '/');
   switchTab('entries');
 }
 
@@ -670,7 +639,7 @@ async function createEntry() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sessionId: state.sessionId,
+        code: groupCode,
         title,
         amount: parseFloat(amount),
         primaryPayer: payer,
@@ -699,7 +668,7 @@ async function deleteEntry(objectId) {
     const res = await fetch('/api/entry/delete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId: state.sessionId, entryObjectId: objectId }),
+      body: JSON.stringify({ code: groupCode, entryObjectId: objectId }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
