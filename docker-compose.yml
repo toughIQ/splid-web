@@ -1,8 +1,9 @@
 services:
   splid-web:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/toughiq/splid-web:latest
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
     ports:
       - "3000:3000"
     environment:

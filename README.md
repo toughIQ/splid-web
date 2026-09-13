@@ -17,10 +17,13 @@ All data stays between you and the Splid servers. No account needed, no database
 
 ## 🚀 Quick Start
 
-### 1️⃣ Build and Run
+### 1️⃣ Run
 
 ```bash
-# With Podman
+# Pull from GitHub Container Registry (recommended)
+podman run -d -p 3000:3000 --name splid-web ghcr.io/toughiq/splid-web
+
+# Or build locally
 podman build -t splid-web .
 podman run -d -p 3000:3000 --name splid-web splid-web
 
@@ -32,6 +35,12 @@ docker compose up -d
 
 Go to `http://localhost:3000` and enter your Splid group invite code (the 8-character code from the app, e.g. `ABC D1E F2G`).
 
+You can also pass the code directly in the URL for a bookmarkable link:
+
+```
+http://localhost:3000/?code=ABCD1EF2G
+```
+
 ### 3️⃣ Done
 
 If you see your group's expenses, you're set. Everything syncs bidirectionally with the Splid mobile app.
@@ -40,12 +49,14 @@ If you see your group's expenses, you're set. Everything syncs bidirectionally w
 
 | Feature | Description |
 |---------|-------------|
-| Expense list | All group expenses with payer, date, amount, and participants |
+| Expense list | All group expenses with payer, date, amount, category, and participants |
 | Balances | Per-member balance overview (who is owed, who owes) |
-| Settlement | Optimized payment suggestions (minimum number of transfers) |
-| Add expense | Create new expenses with flexible cost splitting |
+| Settlement | Optimized payment suggestions with one-click quick-settle button |
+| Add expense | Create expenses with category selection and flexible cost splitting |
+| Record payment | Settle debts between members (from the balance page) |
 | Delete expense | Soft-delete (syncs to all devices via Splid backend) |
-| Auto-reconnect | Session saved in browser, reconnects automatically |
+| Read-only default | Write operations disabled unless `ENABLE_WRITES=true` is set |
+| URL-based access | Bookmarkable links with `?code=` parameter, no login screen |
 | Dark mode | Follows system preference |
 | PWA-ready | Installable as a home screen app on mobile |
 
@@ -75,10 +86,10 @@ No API keys, no `.env` file, no secrets. The Splid invite code is entered by the
 
 ```bash
 # Safe read-only mode (default)
-podman run -d -p 3000:3000 splid-web
+podman run -d -p 3000:3000 ghcr.io/toughiq/splid-web
 
 # Allow creating and deleting expenses
-podman run -d -p 3000:3000 -e ENABLE_WRITES=true splid-web
+podman run -d -p 3000:3000 -e ENABLE_WRITES=true ghcr.io/toughiq/splid-web
 ```
 
 ## 🔒 Security and Privacy
