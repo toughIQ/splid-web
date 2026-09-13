@@ -1,42 +1,110 @@
-# Splid Web
+# 💸 splid-web
 
-A web interface for [Splid](https://splid.app) groups, built on the unofficial [splid-js](https://github.com/LinusBolls/splid-js) SDK.
+> Web interface for [Splid](https://splid.app) expense groups. See balances, track expenses, settle debts, all from your browser.
 
-## Features
+## 💡 What Is This?
 
-- View group expenses and transaction history
-- See balances and suggested settlement payments
-- Create new expenses with flexible cost splitting
-- Delete expenses (soft-delete, syncs to all devices)
-- Dark/light mode, PWA-ready
+A self-hosted web app that connects to your existing [Splid](https://splid.app) groups. Splid is a popular mobile app for splitting expenses with friends, family, or flatmates, but it only runs on iOS and Android. This project gives you a browser-based interface for the same data.
 
-## Quick Start
+Just enter your group's invite code and you get:
+
+- A full list of all expenses and payments
+- Who owes whom and how much (debt simplification)
+- The ability to add new expenses or delete existing ones
+- Everything syncs back to the Splid app on all group members' phones
+
+All data stays between you and the Splid servers. No account needed, no database, no cloud service.
+
+## 🚀 Quick Start
+
+### 1️⃣ Build and Run
 
 ```bash
-# Build and run with Docker/Podman
+# With Podman
 podman build -t splid-web .
-podman run -d -p 3000:3000 splid-web
+podman run -d -p 3000:3000 --name splid-web splid-web
 
-# Or use docker-compose
+# Or with Docker Compose
 docker compose up -d
 ```
 
-Open `http://localhost:3000` and enter your Splid group invite code.
+### 2️⃣ Open in Browser
 
-## Architecture
+Go to `http://localhost:3000` and enter your Splid group invite code (the 8-character code from the app, e.g. `ABC D1E F2G`).
 
-- **Backend:** Node.js + Express, proxies requests to the Splid API via splid-js (required for CORS)
-- **Frontend:** Vanilla HTML/CSS/JS, single-page application
-- **No database:** all data lives on Splid's servers, the backend is stateless (in-memory sessions with 30min TTL)
+### 3️⃣ Done
 
-## Configuration
+If you see your group's expenses, you're set. Everything syncs bidirectionally with the Splid mobile app.
+
+## 🛠️ Features
+
+| Feature | Description |
+|---------|-------------|
+| Expense list | All group expenses with payer, date, amount, and participants |
+| Balances | Per-member balance overview (who is owed, who owes) |
+| Settlement | Optimized payment suggestions (minimum number of transfers) |
+| Add expense | Create new expenses with flexible cost splitting |
+| Delete expense | Soft-delete (syncs to all devices via Splid backend) |
+| Auto-reconnect | Session saved in browser, reconnects automatically |
+| Dark mode | Follows system preference |
+| PWA-ready | Installable as a home screen app on mobile |
+
+## 🏗️ Architecture
+
+```
+┌──────────┐     ┌──────────────┐     ┌──────────────┐
+│ Browser  │────▶│ Express.js   │────▶│ Splid Backend │
+│ (Vanilla │◀────│ + splid-js   │◀────│ (herokuapp)  │
+│  HTML/JS)│     │ CORS Proxy   │     │              │
+└──────────┘     └──────────────┘     └──────────────┘
+```
+
+- **Backend:** Node.js + Express with [splid-js](https://github.com/LinusBolls/splid-js). Acts as a CORS proxy because the Splid backend does not accept browser requests directly.
+- **Frontend:** Single `index.html` with vanilla HTML, CSS, and JavaScript. No framework, no build step.
+- **No database.** All data lives on Splid's servers. The backend holds in-memory sessions (30 min TTL) for convenience, but stores nothing on disk.
+- **No credentials in the repo.** Authentication happens at runtime via invite codes entered by the user.
+
+## ⚙️ Configuration
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PORT`   | `3000`  | Server port |
+| `PORT`   | `3000`  | Server listen port |
 
-No API keys or credentials needed. Authentication is handled per-group via Splid invite codes at runtime.
+That's it. No API keys, no `.env` file, no secrets. The Splid invite code is entered by the user in the browser at runtime.
 
-## Disclaimer
+## 🔒 Security and Privacy
 
-This project uses an unofficial, reverse-engineered API. It is not affiliated with or endorsed by Splid. The API may change without notice.
+- **No data stored on your server.** The backend is a stateless proxy. All financial data lives on Splid's infrastructure.
+- **No credentials in the code.** The invite code is entered at runtime and held in memory only.
+- **No telemetry, no analytics.** This is a local tool.
+- **Session auto-expiry.** Server-side sessions expire after 30 minutes of inactivity.
+- **MIT licensed.** You can read every line of code.
+
+> **About invite codes:** Anyone with a Splid invite code has full read/write access to that group. Treat your invite code like a password. Do not share it publicly.
+
+## ❓ FAQ
+
+**Q: Does this replace the Splid app?**
+A: No. It connects to the same backend. Changes made in the web app appear in the mobile app and vice versa.
+
+**Q: Do I need a Splid account?**
+A: No. Splid does not use accounts. You just need a group invite code, the same code you use to add people to a group in the app.
+
+**Q: Can multiple people use the web app?**
+A: Yes. Each person enters their group's invite code. The backend handles multiple sessions independently.
+
+**Q: What happens if Splid changes their API?**
+A: This project depends on the unofficial [splid-js](https://github.com/LinusBolls/splid-js) SDK. If Splid changes their backend, splid-js needs to be updated first, then this project can pull the new version.
+
+**Q: Can I run this on my home server?**
+A: Absolutely. Build the container image once and run it. It needs outbound HTTPS access to `splid.herokuapp.com`, nothing else.
+
+## 🙏 Acknowledgments
+
+- **[splid-js](https://github.com/LinusBolls/splid-js)** by LinusBolls (MIT License). The reverse-engineered TypeScript client that makes this project possible. All Splid API communication, balance calculation, and debt simplification runs through this library.
+
+## ⚖️ Disclaimer
+
+This project is **not affiliated with, endorsed by, or connected to** Splid or TeamTurtle in any way. Splid is a product of TeamTurtle.
+
+This tool accesses the Splid backend as an end user through the unofficial splid-js SDK. The API is undocumented and may change without notice. Use at your own risk and for personal use only.
