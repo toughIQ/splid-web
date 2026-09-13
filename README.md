@@ -69,8 +69,17 @@ If you see your group's expenses, you're set. Everything syncs bidirectionally w
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT`   | `3000`  | Server listen port |
+| `ENABLE_WRITES` | not set | The app starts in **read-only mode** by default. Creating and deleting expenses is blocked on both server and UI level. Set to `true` to allow write operations. |
 
-That's it. No API keys, no `.env` file, no secrets. The Splid invite code is entered by the user in the browser at runtime.
+No API keys, no `.env` file, no secrets. The Splid invite code is entered by the user in the browser at runtime.
+
+```bash
+# Safe read-only mode (default)
+podman run -d -p 3000:3000 splid-web
+
+# Allow creating and deleting expenses
+podman run -d -p 3000:3000 -e ENABLE_WRITES=true splid-web
+```
 
 ## 🔒 Security and Privacy
 

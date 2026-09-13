@@ -432,6 +432,7 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-app
 <script>
 let state = {
   sessionId: null,
+  readOnly: true,
   group: null,
   members: [],
   entries: [],
@@ -580,6 +581,8 @@ function renderApp() {
   $('group-name').textContent = group?.name || '';
   $('group-currency').textContent = currency;
 
+  $('tab-btn-add').classList.toggle('hidden', state.readOnly);
+
   // Entries
   if (entries.length === 0) {
     $('entries-list').innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px">Keine Ausgaben</p>';
@@ -596,7 +599,7 @@ function renderApp() {
           <div class="entry-meta">${payerName} &middot; ${formatDate(e.date)}${!isPayment && profiteerNames ? ' &middot; ' + profiteerNames : ''}</div>
         </div>
         <div class="entry-amount${isPayment ? ' payment' : ''}">${formatAmount(e.totalAmount, e.currencyCode)}</div>
-        <button class="entry-delete" onclick="deleteEntry('${e.objectId}')" title="Löschen">&times;</button>
+        ${state.readOnly ? '' : `<button class="entry-delete" onclick="deleteEntry('${e.objectId}')" title="Löschen">&times;</button>`}
       </div>`;
     }).join('');
   }

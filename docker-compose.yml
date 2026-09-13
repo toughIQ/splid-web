@@ -7,4 +7,5 @@ services:
       - "3000:3000"
     environment:
       - PORT=3000
+      # - ENABLE_WRITES=true  # uncomment to allow creating and deleting expenses
     restart: unless-stopped

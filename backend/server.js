@@ -6,6 +6,7 @@ import { dirname, join } from 'path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
+const ENABLE_WRITES = process.env.ENABLE_WRITES === 'true';
 
 app.use(express.json());
 app.use(express.static(join(__dirname, '..', 'frontend')));
@@ -58,6 +59,7 @@ app.post('/api/connect', async (req, res) => {
 
     res.json({
       sessionId,
+      readOnly: !ENABLE_WRITES,
       group: {
         objectId: groupId,
         name: groupInfo.name,
@@ -136,6 +138,7 @@ app.post('/api/refresh', async (req, res) => {
 });
 
 app.post('/api/entry/create', async (req, res) => {
+  if (!ENABLE_WRITES) return res.status(403).json({ error: 'Read-only mode. Set ENABLE_WRITES=true to allow changes.' });
   const { sessionId, title, amount, currencyCode, primaryPayer, profiteers, category } = req.body;
   const session = getClient(sessionId);
   if (!session) return res.status(401).json({ error: 'Session expired' });
@@ -167,6 +170,7 @@ app.post('/api/entry/create', async (req, res) => {
 });
 
 app.post('/api/entry/delete', async (req, res) => {
+  if (!ENABLE_WRITES) return res.status(403).json({ error: 'Read-only mode. Set ENABLE_WRITES=true to allow changes.' });
   const { sessionId, entryObjectId } = req.body;
   const session = getClient(sessionId);
   if (!session) return res.status(401).json({ error: 'Session expired' });
@@ -214,5 +218,5 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Splid Web running on port ${PORT}`);
+  console.log(`Splid Web running on port ${PORT} (${ENABLE_WRITES ? 'read-write' : 'read-only'})`);
 });
