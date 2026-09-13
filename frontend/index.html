@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="/manifest.json">
+<title>Splid Web</title>
+<style>
+:root {
+  --bg: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-input: #f1f5f9;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-light: #dbeafe;
+  --danger: #dc2626;
+  --danger-light: #fee2e2;
+  --success: #16a34a;
+  --success-light: #dcfce7;
+  --warning: #d97706;
+  --warning-light: #fef3c7;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f172a;
+    --bg-card: #1e293b;
+    --bg-input: #334155;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --border: #334155;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --accent-light: #1e3a5f;
+    --danger: #ef4444;
+    --danger-light: #451a1a;
+    --success: #22c55e;
+    --success-light: #14332a;
+    --warning: #f59e0b;
+    --warning-light: #452a08;
+    --shadow: none;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  min-height: 100dvh;
+}
+.container {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 16px;
+  padding-bottom: 100px;
+}
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 12px; color: var(--text-muted); }
+h3 { font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 8px; }
+
+input, select, textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+input:focus, select:focus { border-color: var(--accent); }
+input[type="number"] { -moz-appearance: textfield; }
+input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+  width: 100%;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--bg-input); }
+.btn-sm { padding: 6px 12px; font-size: 0.85rem; width: auto; }
+
+.error-msg {
+  background: var(--danger-light);
+  color: var(--danger);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  margin-top: 12px;
+}
+
+.hidden { display: none !important; }
+
+/* Login */
+#login-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 80dvh;
+  padding: 20px;
+}
+#login-view .card { width: 100%; max-width: 400px; text-align: center; }
+#login-view h1 { font-size: 2rem; margin-bottom: 8px; }
+#login-view p { color: var(--text-muted); margin-bottom: 24px; }
+.code-input {
+  text-align: center;
+  font-size: 1.4rem;
+  font-family: monospace;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+/* Tabs */
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  display: flex;
+  padding: 8px 0;
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+  z-index: 100;
+}
+.tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.tab.active { color: var(--accent); }
+.tab svg { width: 22px; height: 22px; }
+
+/* Header */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.app-header .group-name { font-size: 1.3rem; font-weight: 700; }
+.app-header .currency { color: var(--text-muted); font-size: 0.85rem; }
+
+/* Entry list */
+.entry-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.entry-item:last-child { border-bottom: none; }
+.entry-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent-light);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.entry-avatar.payment { background: var(--success-light); color: var(--success); }
+.entry-info { flex: 1; min-width: 0; }
+.entry-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.entry-meta { font-size: 0.8rem; color: var(--text-muted); }
+.entry-amount { font-weight: 700; text-align: right; white-space: nowrap; }
+.entry-amount.payment { color: var(--success); }
+
+/* Balance */
+.balance-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.balance-item:last-child { border-bottom: none; }
+.balance-name { font-weight: 600; }
+.balance-value { font-weight: 700; font-size: 1.1rem; }
+.balance-positive { color: var(--success); }
+.balance-negative { color: var(--danger); }
+.balance-zero { color: var(--text-muted); }
+
+.payment-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--bg-input);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+.payment-arrow { color: var(--accent); font-weight: 700; }
+.payment-amount { margin-left: auto; font-weight: 700; }
+
+/* Add form */
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: var(--text-muted); }
+.profiteer-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.profiteer-chip {
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+.profiteer-chip.selected {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.refresh-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+.refresh-btn:hover { background: var(--bg-input); }
+.refresh-btn svg { width: 20px; height: 20px; display: block; }
+
+.disconnect-btn {
+  margin-top: 24px;
+}
+
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  flex-direction: column;
+  gap: 16px;
+}
+.loading-overlay .spinner { border-color: var(--border); border-top-color: var(--accent); width: 40px; height: 40px; border-width: 3px; }
+
+.entry-delete {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s;
+}
+.entry-item:hover .entry-delete { opacity: 1; }
+.entry-delete:hover { color: var(--danger); }
+
+@media (hover: none) {
+  .entry-delete { opacity: 0.5; }
+}
+</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loading" class="loading-overlay hidden">
+  <div class="spinner"></div>
+  <span style="color:var(--text-muted)">Verbinde mit Splid...</span>
+</div>
+
+<!-- Login View -->
+<div id="login-view">
+  <div class="card">
+    <h1>Splid Web</h1>
+    <p>Gib deinen Einladungscode ein</p>
+    <input type="text" id="invite-code" class="code-input" placeholder="ABC D1E F2G" maxlength="15" autocomplete="off" autocapitalize="characters" spellcheck="false">
+    <div style="margin-top:16px">
+      <button class="btn btn-primary" id="connect-btn" onclick="connect()">Verbinden</button>
+    </div>
+    <div id="login-error" class="error-msg hidden"></div>
+  </div>
+</div>
+
+<!-- App View -->
+<div id="app-view" class="hidden">
+  <div class="container">
+    <div class="app-header">
+      <div>
+        <span class="group-name" id="group-name"></span>
+        <span class="currency" id="group-currency"></span>
+      </div>
+      <button class="refresh-btn" onclick="refresh()" title="Aktualisieren">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+      </button>
+    </div>
+
+    <!-- Entries Tab -->
+    <div id="tab-entries">
+      <div class="card" id="entries-list"></div>
+    </div>
+
+    <!-- Balance Tab -->
+    <div id="tab-balance" class="hidden">
+      <div class="card">
+        <h3>Kontostände</h3>
+        <div id="balance-list"></div>
+      </div>
+      <div class="card">
+        <h3>Ausgleichszahlungen</h3>
+        <div id="payments-list"></div>
+      </div>
+    </div>
+
+    <!-- Add Tab -->
+    <div id="tab-add" class="hidden">
+      <div class="card">
+        <h3>Neue Ausgabe</h3>
+        <div class="form-group">
+          <label>Beschreibung</label>
+          <input type="text" id="add-title" placeholder="z.B. Abendessen">
+        </div>
+        <div class="form-group">
+          <label>Betrag</label>
+          <input type="number" id="add-amount" placeholder="0.00" step="0.01" min="0" inputmode="decimal">
+        </div>
+        <div class="form-group">
+          <label>Bezahlt von</label>
+          <select id="add-payer"></select>
+        </div>
+        <div class="form-group">
+          <label>Aufgeteilt auf</label>
+          <div class="profiteer-list" id="add-profiteers"></div>
+        </div>
+        <div style="margin-top:20px">
+          <button class="btn btn-primary" id="add-submit" onclick="createEntry()">Ausgabe erstellen</button>
+        </div>
+        <div id="add-error" class="error-msg hidden"></div>
+      </div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div id="tab-settings" class="hidden">
+      <div class="card">
+        <h3>Verbindung</h3>
+        <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:4px">Gruppe: <strong id="settings-group"></strong></p>
+        <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:4px">Mitglieder: <strong id="settings-members"></strong></p>
+        <p style="color:var(--text-muted);font-size:0.9rem">Ausgaben: <strong id="settings-entries"></strong></p>
+        <button class="btn btn-danger disconnect-btn" onclick="disconnect()">Verbindung trennen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <button class="tab active" onclick="switchTab('entries')" id="tab-btn-entries">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>
+      Ausgaben
+    </button>
+    <button class="tab" onclick="switchTab('balance')" id="tab-btn-balance">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      Salden
+    </button>
+    <button class="tab" onclick="switchTab('add')" id="tab-btn-add">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>
+      Neu
+    </button>
+    <button class="tab" onclick="switchTab('settings')" id="tab-btn-settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      Info
+    </button>
+  </div>
+</div>
+
+<script>
+let state = {
+  sessionId: null,
+  group: null,
+  members: [],
+  entries: [],
+  balance: {},
+  suggestedPayments: [],
+};
+
+const $ = id => document.getElementById(id);
+
+function init() {
+  const saved = localStorage.getItem('splid-session');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed.sessionId && parsed.inviteCode) {
+        reconnect(parsed.inviteCode);
+        return;
+      }
+    } catch {}
+  }
+  $('invite-code').addEventListener('keydown', e => { if (e.key === 'Enter') connect(); });
+}
+
+async function connect() {
+  const code = $('invite-code').value.trim();
+  if (!code) return;
+
+  $('connect-btn').disabled = true;
+  $('login-error').classList.add('hidden');
+  $('loading').classList.remove('hidden');
+
+  try {
+    const res = await fetch('/api/connect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ inviteCode: code }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    state = data;
+    localStorage.setItem('splid-session', JSON.stringify({ sessionId: data.sessionId, inviteCode: code }));
+    renderApp();
+    $('login-view').classList.add('hidden');
+    $('app-view').classList.remove('hidden');
+  } catch (err) {
+    $('login-error').textContent = err.message || 'Verbindung fehlgeschlagen';
+    $('login-error').classList.remove('hidden');
+  } finally {
+    $('connect-btn').disabled = false;
+    $('loading').classList.add('hidden');
+  }
+}
+
+async function reconnect(code) {
+  $('login-view').classList.add('hidden');
+  $('loading').classList.remove('hidden');
+
+  try {
+    const res = await fetch('/api/connect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ inviteCode: code }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    state = data;
+    localStorage.setItem('splid-session', JSON.stringify({ sessionId: data.sessionId, inviteCode: code }));
+    renderApp();
+    $('app-view').classList.remove('hidden');
+  } catch {
+    localStorage.removeItem('splid-session');
+    $('login-view').classList.remove('hidden');
+  } finally {
+    $('loading').classList.add('hidden');
+  }
+}
+
+async function refresh() {
+  if (!state.sessionId) return;
+
+  try {
+    const res = await fetch('/api/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: state.sessionId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    Object.assign(state, data);
+    renderApp();
+  } catch (err) {
+    console.error('Refresh failed:', err);
+  }
+}
+
+function disconnect() {
+  state = { sessionId: null, group: null, members: [], entries: [], balance: {}, suggestedPayments: [] };
+  localStorage.removeItem('splid-session');
+  $('app-view').classList.add('hidden');
+  $('login-view').classList.remove('hidden');
+  $('invite-code').value = '';
+  switchTab('entries');
+}
+
+function switchTab(name) {
+  ['entries', 'balance', 'add', 'settings'].forEach(t => {
+    $('tab-' + t).classList.toggle('hidden', t !== name);
+    $('tab-btn-' + t).classList.toggle('active', t === name);
+  });
+}
+
+function getMemberName(globalId) {
+  const m = state.members.find(m => m.GlobalId === globalId);
+  return m ? m.name : '?';
+}
+
+function getMemberInitials(globalId) {
+  const m = state.members.find(m => m.GlobalId === globalId);
+  return m ? m.initials : '?';
+}
+
+function formatAmount(amount, currency) {
+  try {
+    return new Intl.NumberFormat('de-AT', { style: 'currency', currency: currency || 'EUR' }).format(amount);
+  } catch {
+    return amount.toFixed(2) + ' ' + (currency || 'EUR');
+  }
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  try {
+    return new Intl.DateTimeFormat('de-AT', { day: '2-digit', month: '2-digit', year: '2-digit' }).format(new Date(iso));
+  } catch {
+    return iso.slice(0, 10);
+  }
+}
+
+function renderApp() {
+  const { group, members, entries, balance, suggestedPayments } = state;
+  const currency = group?.defaultCurrencyCode || 'EUR';
+
+  $('group-name').textContent = group?.name || '';
+  $('group-currency').textContent = currency;
+
+  // Entries
+  if (entries.length === 0) {
+    $('entries-list').innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px">Keine Ausgaben</p>';
+  } else {
+    $('entries-list').innerHTML = entries.map(e => {
+      const payerName = getMemberName(e.primaryPayer);
+      const payerInitials = getMemberInitials(e.primaryPayer);
+      const isPayment = e.isPayment;
+      const profiteerNames = Object.keys(e.items?.[0]?.profiteers || {}).map(getMemberName).join(', ');
+      return `<div class="entry-item">
+        <div class="entry-avatar${isPayment ? ' payment' : ''}">${payerInitials}</div>
+        <div class="entry-info">
+          <div class="entry-title">${isPayment ? 'Zahlung' : escapeHtml(e.title || 'Ohne Titel')}</div>
+          <div class="entry-meta">${payerName} &middot; ${formatDate(e.date)}${!isPayment && profiteerNames ? ' &middot; ' + profiteerNames : ''}</div>
+        </div>
+        <div class="entry-amount${isPayment ? ' payment' : ''}">${formatAmount(e.totalAmount, e.currencyCode)}</div>
+        <button class="entry-delete" onclick="deleteEntry('${e.objectId}')" title="Löschen">&times;</button>
+      </div>`;
+    }).join('');
+  }
+
+  // Balance
+  const balanceHtml = members.map(m => {
+    const b = balance[m.GlobalId];
+    if (!b) return '';
+    const val = parseFloat(b.balance);
+    const cls = val > 0.005 ? 'balance-positive' : val < -0.005 ? 'balance-negative' : 'balance-zero';
+    const sign = val > 0.005 ? '+' : '';
+    return `<div class="balance-item">
+      <span class="balance-name">${escapeHtml(m.name)}</span>
+      <span class="balance-value ${cls}">${sign}${formatAmount(val, currency)}</span>
+    </div>`;
+  }).join('');
+  $('balance-list').innerHTML = balanceHtml || '<p style="color:var(--text-muted)">Keine Daten</p>';
+
+  // Suggested payments
+  if (suggestedPayments.length === 0) {
+    $('payments-list').innerHTML = '<p style="color:var(--text-muted)">Alles ausgeglichen!</p>';
+  } else {
+    $('payments-list').innerHTML = suggestedPayments.map(p => {
+      return `<div class="payment-item">
+        <span>${getMemberName(p.from)}</span>
+        <span class="payment-arrow">&rarr;</span>
+        <span>${getMemberName(p.to)}</span>
+        <span class="payment-amount">${formatAmount(parseFloat(p.amount), currency)}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // Add form: payer select + profiteers
+  const payerSelect = $('add-payer');
+  payerSelect.innerHTML = members.map(m => `<option value="${m.GlobalId}">${escapeHtml(m.name)}</option>`).join('');
+
+  $('add-profiteers').innerHTML = members.map(m => {
+    return `<span class="profiteer-chip selected" data-id="${m.GlobalId}" onclick="toggleProfiteer(this)">${escapeHtml(m.name)}</span>`;
+  }).join('');
+
+  // Settings
+  $('settings-group').textContent = group?.name || '';
+  $('settings-members').textContent = members.length;
+  $('settings-entries').textContent = entries.length;
+}
+
+function toggleProfiteer(el) {
+  el.classList.toggle('selected');
+}
+
+async function createEntry() {
+  const title = $('add-title').value.trim();
+  const amount = $('add-amount').value;
+  const payer = $('add-payer').value;
+  const profiteers = Array.from(document.querySelectorAll('.profiteer-chip.selected')).map(el => el.dataset.id);
+
+  if (!title || !amount || !payer || profiteers.length === 0) {
+    $('add-error').textContent = 'Bitte alle Felder ausfüllen und mindestens eine Person auswählen';
+    $('add-error').classList.remove('hidden');
+    return;
+  }
+
+  $('add-submit').disabled = true;
+  $('add-error').classList.add('hidden');
+
+  try {
+    const res = await fetch('/api/entry/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: state.sessionId,
+        title,
+        amount: parseFloat(amount),
+        primaryPayer: payer,
+        profiteers,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    $('add-title').value = '';
+    $('add-amount').value = '';
+    await refresh();
+    switchTab('entries');
+  } catch (err) {
+    $('add-error').textContent = err.message || 'Fehler beim Erstellen';
+    $('add-error').classList.remove('hidden');
+  } finally {
+    $('add-submit').disabled = false;
+  }
+}
+
+async function deleteEntry(objectId) {
+  if (!confirm('Ausgabe wirklich löschen?')) return;
+
+  try {
+    const res = await fetch('/api/entry/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: state.sessionId, entryObjectId: objectId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    await refresh();
+  } catch (err) {
+    alert('Löschen fehlgeschlagen: ' + err.message);
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+init();
+</script>
+</body>
+</html>
